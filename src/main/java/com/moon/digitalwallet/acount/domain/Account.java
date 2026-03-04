@@ -45,11 +45,18 @@ public class Account {
     public User getUser() { return user; }
 
     public void deposit(BigDecimal amount) {
+        validatePositiveAmount(amount);
         this.balance = this.balance.add(amount);
     }
 
     public void withdraw(BigDecimal amount) {
         this.balance = this.balance.subtract(amount);
+    }
+
+    private void validatePositiveAmount(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new IllegalArgumentException("amount must be positive");
+        }
     }
 
 
