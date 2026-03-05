@@ -48,4 +48,16 @@ public class AccountTest {
         // then
         assertThat(account.getBalance()).isEqualByComparingTo("100.00");
     }
+
+    @Test
+    void deposit_withPositiveAmount_increasesBalance() {
+        // given
+        Account account = new Account(new User("tester"));
+
+        // when
+        account.deposit(new BigDecimal("100.00"));
+
+        // then
+        assertThat(account.getBalance()).isEqualByComparingTo("100.00");
+    }
 }
