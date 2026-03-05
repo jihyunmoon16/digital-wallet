@@ -60,4 +60,17 @@ public class AccountTest {
         // then
         assertThat(account.getBalance()).isEqualByComparingTo("100.00");
     }
+
+    @Test
+    void withdraw_withSufficientBalance_decreasesBalance() {
+        // given
+        Account account = new Account(new User("tester"));
+        account.deposit(new BigDecimal("100.00"));
+
+        // when
+        account.withdraw(new BigDecimal("50.00"));
+
+        // then
+        assertThat(account.getBalance()).isEqualByComparingTo("50.00");
+    }
 }
