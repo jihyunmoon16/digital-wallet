@@ -28,9 +28,12 @@ public class AccountServiceTest {
     UserRepository userRepository;
 
     @Test
-    void createAccount_createsAccountWithZeroBalance() {
+    void createAccount_withValidUsername_createsAccountWithZeroBalance() {
+        // given
+        String username = "testname";
+
         // when
-        Long accountId = accountService.createAccount("testname");
+        Long accountId = accountService.createAccount(username);
 
         // then
         assertThat(accountId).isNotNull();
@@ -42,22 +45,35 @@ public class AccountServiceTest {
     }
 
     @Test
-    void withdraw_returnsInsufficientBalanceErrorCode() {
+    void withdraw_withInsufficientBalance_returnsInsufficientBalanceErrorCode() {
+        // given
         Long accountId = accountService.createAccount("testname");
 
+        // when & then
         assertThatThrownBy(() -> accountService.withdraw(accountId, new BigDecimal("1.00")))
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_BALANCE));
     }
 
     @Test
-    void withdraw_returnsInvalidRequestForNonPositiveAmount() {
+    void withdraw_withNonPositiveAmount_returnsInvalidRequestErrorCode() {
+        // given
         Long accountId = accountService.createAccount("testname");
 
+        // when & then
         assertThatThrownBy(() -> accountService.withdraw(accountId, BigDecimal.ZERO))
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST));
     }
 
+    @Test
+    void withdraw_withMissingAccount_returnsAccountNotFoundErrorCode() {
+        // given
+        Long missingAccountId = 999999L;
 
+        // when & then
+        assertThatThrownBy(() -> accountService.withdraw(missingAccountId, new BigDecimal("1.00")))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_NOT_FOUND));
+    }
 }

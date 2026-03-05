@@ -11,31 +11,41 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class AccountTest {
 
     @Test
-    void deposit_rejectsNonPositiveAmount() {
+    void deposit_withNonPositiveAmount_throwsIllegalArgumentException() {
+        // given
         Account account = new Account(new User("tester"));
 
+        // when & then
         assertThatThrownBy(() -> account.deposit(BigDecimal.ZERO)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> account.deposit(new BigDecimal("-1.00"))).isInstanceOf(IllegalArgumentException.class);
 
+        // then
         assertThat(account.getBalance()).isEqualByComparingTo("0.00");
     }
 
     @Test
-    void withdraw_rejectsNonPositiveAmount() {
+    void withdraw_withNonPositiveAmount_throwsIllegalArgumentException() {
+        // given
         Account account = new Account(new User("tester"));
 
+        // when & then
         assertThatThrownBy(() -> account.withdraw(BigDecimal.ZERO)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> account.withdraw(new BigDecimal("-1.00"))).isInstanceOf(IllegalArgumentException.class);
 
+        // then
         assertThat(account.getBalance()).isEqualByComparingTo("0.00");
     }
 
     @Test
-    void withdraw_rejectsInsufficientBalance() {
+    void withdraw_withInsufficientBalance_throwsIllegalStateException() {
+        // given
         Account account = new Account(new User("tester"));
         account.deposit(new BigDecimal("100.00"));
+
+        // when & then
         assertThatThrownBy(() -> account.withdraw(new BigDecimal("150.00"))).isInstanceOf(IllegalStateException.class);
 
+        // then
         assertThat(account.getBalance()).isEqualByComparingTo("100.00");
     }
 }
