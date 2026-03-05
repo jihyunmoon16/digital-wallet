@@ -1,8 +1,7 @@
 package com.moon.digitalwallet.account.service;
 
-import com.moon.digitalwallet.acount.domain.Account;
-import com.moon.digitalwallet.acount.repository.AccountRepository;
-import com.moon.digitalwallet.acount.service.AccountService;
+import com.moon.digitalwallet.account.domain.Account;
+import com.moon.digitalwallet.account.repository.AccountRepository;
 import com.moon.digitalwallet.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;

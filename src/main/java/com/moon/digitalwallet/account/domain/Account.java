@@ -1,4 +1,4 @@
-package com.moon.digitalwallet.acount.domain;
+package com.moon.digitalwallet.account.domain;
 
 import com.moon.digitalwallet.user.domain.User;
 import jakarta.persistence.*;
@@ -50,6 +50,7 @@ public class Account {
     }
 
     public void withdraw(BigDecimal amount) {
+        validatePositiveAmount(amount);
         this.balance = this.balance.subtract(amount);
     }
 
