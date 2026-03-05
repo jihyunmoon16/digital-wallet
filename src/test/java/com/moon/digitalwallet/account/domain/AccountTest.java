@@ -20,4 +20,13 @@ public class AccountTest {
 
         assertThat(account.getBalance()).isEqualByComparingTo("0.00");
     }
+
+    @Test
+    void withdraw_rejectsInsufficientBalance() {
+        Account account = new Account(new User("tester"));
+        account.deposit(new BigDecimal("100.00"));
+        assertThatThrownBy(() -> account.withdraw(new BigDecimal("150.00"))).isInstanceOf(IllegalStateException.class);
+
+        assertThat(account.getBalance()).isEqualByComparingTo("100.00");
+    }
 }

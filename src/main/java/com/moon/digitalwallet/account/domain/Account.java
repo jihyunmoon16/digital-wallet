@@ -51,6 +51,10 @@ public class Account {
 
     public void withdraw(BigDecimal amount) {
         validatePositiveAmount(amount);
+
+        if(this.balance.compareTo(amount) < 0) {
+            throw new IllegalStateException("insufficient balance");
+        }
         this.balance = this.balance.subtract(amount);
     }
 
