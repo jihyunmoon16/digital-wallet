@@ -13,8 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
 @Transactional
@@ -75,5 +74,20 @@ public class AccountServiceTest {
         assertThatThrownBy(() -> accountService.withdraw(missingAccountId, new BigDecimal("1.00")))
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_NOT_FOUND));
+    }
+
+    @Test
+    void withdraw_withValidRequest_updatesAccountBalance() {
+        // given
+        Long accountId = accountService.createAccount("testname");
+        Account account = accountRepository.findById(accountId).orElseThrow();
+        account.deposit(new BigDecimal("100.00"));
+
+        // when
+        assertThatCode(() -> accountService.withdraw(accountId, new BigDecimal("30.00"))).doesNotThrowAnyException();
+
+        // then
+        Account updated = accountRepository.findById(accountId).orElseThrow();
+        assertThat(updated.getBalance()).isEqualByComparingTo("70.00");
     }
 }
