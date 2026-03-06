@@ -2,7 +2,7 @@ package com.moon.digitalwallet.account.service;
 
 import com.moon.digitalwallet.account.domain.Account;
 import com.moon.digitalwallet.account.repository.AccountRepository;
-import com.moon.digitalwallet.common.error.ApiException;
+import com.moon.digitalwallet.common.error.BusinessException;
 import com.moon.digitalwallet.common.error.ErrorCode;
 import com.moon.digitalwallet.user.domain.User;
 import com.moon.digitalwallet.user.repository.UserRepository;
@@ -31,15 +31,8 @@ public class AccountService {
     @Transactional
     public void withdraw(Long accountId, BigDecimal amount) {
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ApiException(ErrorCode.ACCOUNT_NOT_FOUND, "account not found"));
-
-        try {
-            account.withdraw(amount);
-        } catch (IllegalArgumentException ex) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, ex.getMessage());
-        } catch (IllegalStateException ex) {
-            throw new ApiException(ErrorCode.INSUFFICIENT_BALANCE, ex.getMessage());
-        }
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND, "account not found"));
+        account.withdraw(amount);
     }
 
 }

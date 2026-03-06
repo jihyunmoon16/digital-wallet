@@ -3,7 +3,7 @@ package com.moon.digitalwallet.transfer.service;
 import com.moon.digitalwallet.account.domain.Account;
 import com.moon.digitalwallet.account.repository.AccountRepository;
 import com.moon.digitalwallet.account.service.AccountService;
-import com.moon.digitalwallet.common.error.ApiException;
+import com.moon.digitalwallet.common.error.BusinessException;
 import com.moon.digitalwallet.common.error.ErrorCode;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
@@ -38,8 +38,8 @@ public class TransferServiceTest {
 
         // when & then
         assertThatThrownBy(() -> transferService.transfer(accountFromId, accountToId, new BigDecimal("100.00")))
-                .isInstanceOf(ApiException.class)
-                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_BALANCE));
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_BALANCE));
 
         assertThat(accountFrom.getBalance()).isEqualByComparingTo("0.00");
         assertThat(accountTo.getBalance()).isEqualByComparingTo("0.00");

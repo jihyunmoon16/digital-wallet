@@ -1,5 +1,7 @@
 package com.moon.digitalwallet.account.domain;
 
+import com.moon.digitalwallet.common.error.BusinessException;
+import com.moon.digitalwallet.common.error.ErrorCode;
 import com.moon.digitalwallet.user.domain.User;
 import jakarta.persistence.*;
 
@@ -53,14 +55,14 @@ public class Account {
         validatePositiveAmount(amount);
 
         if(this.balance.compareTo(amount) < 0) {
-            throw new IllegalStateException("insufficient balance");
+            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE, "insufficient balance");
         }
         this.balance = this.balance.subtract(amount);
     }
 
     private void validatePositiveAmount(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0) {
-            throw new IllegalArgumentException("amount must be positive");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "amount must be positive");
         }
     }
 

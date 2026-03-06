@@ -2,7 +2,7 @@ package com.moon.digitalwallet.account.service;
 
 import com.moon.digitalwallet.account.domain.Account;
 import com.moon.digitalwallet.account.repository.AccountRepository;
-import com.moon.digitalwallet.common.error.ApiException;
+import com.moon.digitalwallet.common.error.BusinessException;
 import com.moon.digitalwallet.common.error.ErrorCode;
 import com.moon.digitalwallet.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -50,8 +50,8 @@ public class AccountServiceTest {
 
         // when & then
         assertThatThrownBy(() -> accountService.withdraw(accountId, new BigDecimal("1.00")))
-                .isInstanceOf(ApiException.class)
-                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_BALANCE));
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_BALANCE));
     }
 
     @Test
@@ -61,8 +61,8 @@ public class AccountServiceTest {
 
         // when & then
         assertThatThrownBy(() -> accountService.withdraw(accountId, BigDecimal.ZERO))
-                .isInstanceOf(ApiException.class)
-                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST));
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST));
     }
 
     @Test
@@ -72,8 +72,8 @@ public class AccountServiceTest {
 
         // when & then
         assertThatThrownBy(() -> accountService.withdraw(missingAccountId, new BigDecimal("1.00")))
-                .isInstanceOf(ApiException.class)
-                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_NOT_FOUND));
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_NOT_FOUND));
     }
 
     @Test

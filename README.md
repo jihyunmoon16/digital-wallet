@@ -43,7 +43,7 @@
 - Success/state checks: `assertThat(...)`
 - Expected exceptions: `assertThatThrownBy(...)`
 - Success path with no exception: `assertThatCode(...).doesNotThrowAnyException()`
-- For API/domain mapping, validate `ApiException` and `ErrorCode`.
+- For API/domain mapping, validate `BusinessException` and `ErrorCode`.
 
 ### 6) Test profile and database
 - Integration tests run with `application-test.yml`.
