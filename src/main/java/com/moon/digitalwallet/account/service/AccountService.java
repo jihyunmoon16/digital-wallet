@@ -31,7 +31,7 @@ public class AccountService {
     @Transactional
     public void withdraw(Long accountId, BigDecimal amount) {
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND, "account not found"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
         account.withdraw(amount);
     }
 

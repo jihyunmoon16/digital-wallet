@@ -55,14 +55,14 @@ public class Account {
         validatePositiveAmount(amount);
 
         if(this.balance.compareTo(amount) < 0) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE, "insufficient balance");
+            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
         }
         this.balance = this.balance.subtract(amount);
     }
 
     private void validatePositiveAmount(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "amount must be positive");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
     }
 

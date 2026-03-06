@@ -20,9 +20,9 @@ public class TransferService {
     @Transactional
     public void transfer(Long accountFromId, Long accountToId, BigDecimal amount) {
         Account accountFrom = accountRepository.findById(accountFromId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND, "account not found"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
         Account accountTo = accountRepository.findById(accountToId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND, "account not found"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         accountFrom.withdraw(amount);
         accountTo.deposit(amount);
