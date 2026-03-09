@@ -20,7 +20,7 @@ import java.math.BigDecimal;
 @SpringBootTest
 @Transactional
 @ActiveProfiles("test")
-public class TransferServiceTest {
+public class TransferServiceIntegrationTest {
     @Autowired
     private TransferService transferService;
     @Autowired
@@ -58,7 +58,6 @@ public class TransferServiceTest {
         Account accountTo = accountRepository.findById(accountToId).orElseThrow();
 
         accountFrom.deposit(new BigDecimal("10000.00"));
-        accountTo.deposit(new BigDecimal("0.00"));
 
         // when
         assertThatCode(() -> transferService.transfer(accountFromId, accountToId, new BigDecimal("3000.00")))
