@@ -1,10 +1,14 @@
 package com.moon.digitalwallet.transfer.service;
 
+import static org.assertj.core.api.Assertions.*;
+
 import com.moon.digitalwallet.account.domain.Account;
 import com.moon.digitalwallet.account.repository.AccountRepository;
 import com.moon.digitalwallet.account.service.AccountService;
 import com.moon.digitalwallet.common.error.BusinessException;
 import com.moon.digitalwallet.common.error.ErrorCode;
+import com.moon.digitalwallet.transfer.repository.TransferRepository;
+
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,15 +17,14 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 @SpringBootTest
 @Transactional
 @ActiveProfiles("test")
 public class TransferServiceTest {
     @Autowired
     private TransferService transferService;
+    @Autowired
+    private TransferRepository transferRepository;
     @Autowired
     private AccountService accountService;
     @Autowired
@@ -44,4 +47,29 @@ public class TransferServiceTest {
         assertThat(accountFrom.getBalance()).isEqualByComparingTo("0.00");
         assertThat(accountTo.getBalance()).isEqualByComparingTo("0.00");
     }
+
+    @Test
+    void transfer_withSuffientBalance_movesMoneyAndCreatesHistory() {
+        // given
+        Long accountFromId = accountService.createAccount("accountFrom");
+        Long accountToId = accountService.createAccount("accountTo");
+
+        Account accountFrom = accountRepository.findById(accountFromId).orElseThrow();
+        Account accountTo = accountRepository.findById(accountToId).orElseThrow();
+
+        accountFrom.deposit(new BigDecimal("10000.00"));
+        accountTo.deposit(new BigDecimal("0.00"));
+
+        // when
+        assertThatCode(() -> transferService.transfer(accountFromId, accountToId, new BigDecimal("3000.00")))
+                .doesNotThrowAnyException();
+
+        // then
+        assertThat(accountFrom.getBalance()).isEqualByComparingTo("7000.00");
+        assertThat(accountTo.getBalance()).isEqualByComparingTo("3000.00");
+
+        assertThat(transferRepository.count()).isEqualTo(1);
+
+    }
+
 }
