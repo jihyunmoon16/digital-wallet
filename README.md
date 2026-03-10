@@ -66,3 +66,12 @@
   - partial updates are rolled back in the same transaction.
 - If you use checked exceptions (`Exception`) for business rules, rollback does not happen by default unless `rollbackFor` is configured.
 - Avoid swallowing runtime exceptions inside transactional methods. If you catch one, rethrow a proper business exception so rollback still occurs.
+
+### 9) Why OffsetDateTime instead of LocalDateTime
+- `LocalDateTime` has no timezone/offset information, so the same value can mean different instants on different servers.
+- `OffsetDateTime` stores both date-time and offset (for example `+09:00`), so the exact instant is explicit.
+- This is safer for distributed systems, logs, and audit data where ordering and exact event time matter.
+- It also aligns well with PostgreSQL `TIMESTAMPTZ` columns used in this project.
+- Rule of thumb:
+  - store timestamps with offset (`OffsetDateTime`)
+  - convert to local display time only at the API client/UI layer
