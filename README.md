@@ -57,3 +57,12 @@
   - `./gradlew test --tests 'com.moon.digitalwallet.account.domain.AccountTest' --console=plain`
 - Run one test method:
   - `./gradlew test --tests 'com.moon.digitalwallet.account.service.AccountServiceTest.withdraw_withValidRequest_updatesAccountBalance' --console=plain`
+
+### 8) Why RuntimeException matters for transaction rollback
+- In Spring, `@Transactional` rolls back by default when a `RuntimeException` (or `Error`) is thrown.
+- `BusinessException` extends `RuntimeException` on purpose, so business failures automatically trigger rollback.
+- This protects consistency in flows like transfer:
+  - if `accountFrom.withdraw(amount)` fails, `accountTo.deposit(amount)` is not committed.
+  - partial updates are rolled back in the same transaction.
+- If you use checked exceptions (`Exception`) for business rules, rollback does not happen by default unless `rollbackFor` is configured.
+- Avoid swallowing runtime exceptions inside transactional methods. If you catch one, rethrow a proper business exception so rollback still occurs.
