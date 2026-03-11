@@ -38,7 +38,7 @@ public class TransferServiceConcurrencyTest {
         Account accountFrom = accountRepository.findById(accountFromId).orElseThrow();
 
         accountFrom.deposit(new BigDecimal("10000.00"));
-
+        accountRepository.saveAndFlush(accountFrom);
 
         ExecutorService executorService = Executors.newFixedThreadPool(2);
         CountDownLatch readyLatch = new CountDownLatch(2);
