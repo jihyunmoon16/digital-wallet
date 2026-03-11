@@ -7,7 +7,8 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE(HttpStatus.UNPROCESSABLE_CONTENT, "insufficient balance"),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "invalid request"),
     SAME_ACCOUNT_TRANSFER_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "same account transfer not allowed"),
-    INVALID_TRANSFER_AMOUNT(HttpStatus.BAD_REQUEST, "invalid transfer amount")
+    INVALID_TRANSFER_AMOUNT(HttpStatus.BAD_REQUEST, "invalid transfer amount"),
+    CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "concurrent modification"),
     ;
 
     private final HttpStatus httpStatus;
