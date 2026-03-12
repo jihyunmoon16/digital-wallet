@@ -9,7 +9,7 @@ public enum ErrorCode {
     SAME_ACCOUNT_TRANSFER_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "same account transfer not allowed"),
     INVALID_TRANSFER_AMOUNT(HttpStatus.BAD_REQUEST, "invalid transfer amount"),
     CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "concurrent modification"),
-    ;
+	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal server error");
 
     private final HttpStatus httpStatus;
     private final String message;

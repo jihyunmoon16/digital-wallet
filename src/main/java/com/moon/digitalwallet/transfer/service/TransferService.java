@@ -18,32 +18,21 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class TransferService {
 
-    private final AccountRepository accountRepository;
-    private final TransferRepository transferRepository;
+    private static final int MAX_RETRIES = 3;
 
-    @Transactional
+    private final TransferTransactionService transferTransactionService;
+
     public void transfer(Long accountFromId, Long accountToId, BigDecimal amount) {
-
-            Account accountFrom = accountRepository.findById(accountFromId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
-            Account accountTo = accountRepository.findById(accountToId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
-
-            if (accountFromId.equals(accountToId)) {
-                throw new BusinessException(ErrorCode.SAME_ACCOUNT_TRANSFER_NOT_ALLOWED);
+        for(int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                transferTransactionService.transferinternal(accountFromId, accountToId, amount);
+                return; // 성공하면 종료
+            } catch (ObjectOptimisticLockingFailureException e) {
+                if (attempt == MAX_RETRIES) {
+                    throw new BusinessException(ErrorCode.CONCURRENT_MODIFICATION);
+                }
             }
-
-            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new BusinessException(ErrorCode.INVALID_TRANSFER_AMOUNT);
-            }
-
-            accountFrom.withdraw(amount);
-            accountTo.deposit(amount);
-
-        try {
-            transferRepository.saveAndFlush(new Transfer(accountFromId,accountToId, amount));
-        } catch (ObjectOptimisticLockingFailureException e) {
-            throw new BusinessException(ErrorCode.CONCURRENT_MODIFICATION);
         }
+        throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 }
