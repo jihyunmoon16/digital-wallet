@@ -64,4 +64,28 @@ public class TransferControllerTest {
 			.andExpect(status().isUnprocessableContent());
 	}
 
+	@Test
+	void transfer_concurrentModification_returns409WithErrorCode() throws Exception {
+
+		doThrow(new BusinessException(ErrorCode.CONCURRENT_MODIFICATION)).when(transferService)
+			.transfer(anyLong(), anyLong(), any(BigDecimal.class));
+
+		String request = """
+		{
+		  "fromAccountId": 1,
+		  "toAccountId": 2,
+		  "amount": 3000
+		}
+		""";
+
+		mockMvc.perform(post("/transfers")
+				.header("X-Request-Id", "req-123")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("CONCURRENT_MODIFICATION"))
+			.andExpect(jsonPath("$.message").value("concurrent modification"))
+			.andExpect(jsonPath("$.requestId").value("req-123"));
+	}
+
 }
