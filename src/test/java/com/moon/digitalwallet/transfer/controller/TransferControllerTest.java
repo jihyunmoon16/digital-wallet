@@ -59,9 +59,13 @@ public class TransferControllerTest {
 		""";
 
 		mockMvc.perform(post("/transfers")
+				.header("X-Request-Id", "req-422")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(request))
-			.andExpect(status().isUnprocessableContent());
+			.andExpect(status().isUnprocessableContent())
+			.andExpect(jsonPath("$.code").value("INSUFFICIENT_BALANCE"))
+			.andExpect(jsonPath("$.message").value("insufficient balance"))
+			.andExpect(jsonPath("$.requestId").value("req-422"));
 	}
 
 	@Test
