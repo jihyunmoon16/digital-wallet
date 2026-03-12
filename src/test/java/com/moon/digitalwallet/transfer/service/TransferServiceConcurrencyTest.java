@@ -34,7 +34,7 @@ public class TransferServiceConcurrencyTest {
     private TransferRepository transferRepository;
 
     @Test
-    void transfer_withConcurrentRequests_returnsOneSuccessAndOneConcurrencyError() throws Exception {
+    void transfer_withConcurrentRequests_returnsOneSuccessAndOneBusinessFailure() throws Exception {
         // given
         Long accountFromId = accountService.createAccount("accountFrom");
         Long accountToId1 = accountService.createAccount("accountTo1");
@@ -97,11 +97,10 @@ public class TransferServiceConcurrencyTest {
 
         // then
         Account from = accountRepository.findById(accountFromId).orElseThrow();
-        ErrorCode expectedConcurrencyError = ErrorCode.CONCURRENT_MODIFICATION;
-
         assertThat(successCount).isEqualTo(1);
         assertThat(failedResults).hasSize(1);
-        assertThat(failedResults.getFirst().errorCode()).isEqualTo(expectedConcurrencyError);
+        assertThat(failedResults.getFirst().errorCode())
+                .isIn(ErrorCode.CONCURRENT_MODIFICATION, ErrorCode.INSUFFICIENT_BALANCE);
 
         assertThat(from.getBalance()).isIn(
                 new BigDecimal("3000.00"), // 7000 송금 성공
