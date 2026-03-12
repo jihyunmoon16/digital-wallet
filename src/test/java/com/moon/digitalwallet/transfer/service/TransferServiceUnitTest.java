@@ -1,117 +1,87 @@
 package com.moon.digitalwallet.transfer.service;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.OptimisticLockingFailureException;
 
-import com.moon.digitalwallet.account.domain.Account;
-import com.moon.digitalwallet.account.repository.AccountRepository;
 import com.moon.digitalwallet.common.error.BusinessException;
 import com.moon.digitalwallet.common.error.ErrorCode;
-import com.moon.digitalwallet.transfer.domain.Transfer;
-import com.moon.digitalwallet.transfer.repository.TransferRepository;
-import com.moon.digitalwallet.user.domain.User;
 
 @ExtendWith(MockitoExtension.class)
 class TransferServiceUnitTest {
 	@Mock
-	private AccountRepository accountRepository;
-	@Mock
-	private TransferRepository transferRepository;
+	private TransferTransactionService transferTransactionService;
 	@InjectMocks
 	private TransferService transferService;
 
 	@Test
-	void transfer_withInsufficientBalance_returnsInsufficientBalanceErrorCode() {
+	void transfer_withInsufficientBalance_propagatesBusinessError() {
 		// given
 		Long fromId = 1L;
 		Long toId = 2L;
+		BigDecimal amount = new BigDecimal("100.00");
 
-		User userFrom = new User("userFrom");
-		User userTo = new User("userTo");
-
-		Account from = new Account(userFrom);
-		Account to = new Account(userTo);
-
-		when(accountRepository.findById(fromId)).thenReturn(Optional.of(from));
-		when(accountRepository.findById(toId)).thenReturn(Optional.of(to));
+		doThrow(new BusinessException(ErrorCode.INSUFFICIENT_BALANCE))
+			.when(transferTransactionService).transferinternal(fromId, toId, amount);
 
 		// when & then
-		assertThatThrownBy(() -> transferService.transfer(fromId, toId, new BigDecimal("100.00")))
+		assertThatThrownBy(() -> transferService.transfer(fromId, toId, amount))
 			.isInstanceOf(BusinessException.class)
 			.satisfies(ex ->
 				assertThat(((BusinessException) ex).getErrorCode())
 					.isEqualTo(ErrorCode.INSUFFICIENT_BALANCE)
 			);
 
-		assertThat(from.getBalance()).isEqualByComparingTo("0.00");
-		assertThat(to.getBalance()).isEqualByComparingTo("0.00");
-
-		verify(transferRepository, never()).save(any());
+		verify(transferTransactionService, times(1)).transferinternal(fromId, toId, amount);
 	}
 
 	@Test
-	void transfer_withSufficientBalance_movesMoneyAndCreatesHistory() {
+	void transfer_withSufficientBalance_delegatesToTransactionService() {
 		// given
 		Long fromId = 1L;
 		Long toId = 2L;
+		BigDecimal amount = new BigDecimal("3000.00");
 
-		User userFrom = new User("userFrom");
-		User userTo = new User("userTo");
-
-		Account from = new Account(userFrom);
-		Account to = new Account(userTo);
-
-		from.deposit(new BigDecimal("10000.00"));
-
-		when(accountRepository.findById(fromId)).thenReturn(Optional.of(from));
-		when(accountRepository.findById(toId)).thenReturn(Optional.of(to));
+		doNothing().when(transferTransactionService).transferinternal(fromId, toId, amount);
 
 		// when & then
-		assertThatCode(() -> transferService.transfer(fromId, toId, new BigDecimal("3000.00")))
+		assertThatCode(() -> transferService.transfer(fromId, toId, amount))
 			.doesNotThrowAnyException();
 
-		assertThat(from.getBalance()).isEqualByComparingTo("7000.00");
-		assertThat(to.getBalance()).isEqualByComparingTo("3000.00");
-
-		verify(transferRepository, times(1)).save(any(Transfer.class));
+		verify(transferTransactionService, times(1)).transferinternal(fromId, toId, amount);
 	}
 
-	/**
-	 * 송금 대상 계좌 없으면 예외
-	 */
 	@Test
-	void transfer_withNonExistingAccountTo_returnsAccountNotFoundErrorCode() {
+	void transfer_withOptimisticLockFailure_retriesAndThrowsConcurrencyError() {
 		// given
 		Long fromId = 1L;
 		Long toId = 2L;
+		BigDecimal amount = new BigDecimal("3000.00");
 
-		User userFrom = new User("userFrom");
-
-		Account from = new Account(userFrom);
-
-		from.deposit(new BigDecimal("10000.00"));
-
-		when(accountRepository.findById(fromId)).thenReturn(Optional.of(from));
-		when(accountRepository.findById(toId)).thenReturn(Optional.empty());
+		doThrow(new OptimisticLockingFailureException("lock failed"))
+			.when(transferTransactionService).transferinternal(fromId, toId, amount);
 
 		// when & then
-		assertThatThrownBy(() -> transferService.transfer(fromId, toId, new BigDecimal("3000.00")))
+		assertThatThrownBy(() -> transferService.transfer(fromId, toId, amount))
 			.isInstanceOf(BusinessException.class)
 			.satisfies(ex ->
 				assertThat(((BusinessException) ex).getErrorCode())
-					.isEqualTo(ErrorCode.ACCOUNT_NOT_FOUND)
+					.isEqualTo(ErrorCode.CONCURRENT_MODIFICATION)
 			);
 
-		verify(transferRepository, never()).save(any());
+		verify(transferTransactionService, times(3)).transferinternal(fromId, toId, amount);
 	}
-
 }

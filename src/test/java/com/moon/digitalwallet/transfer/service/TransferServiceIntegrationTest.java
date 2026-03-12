@@ -53,6 +53,7 @@ class TransferServiceIntegrationTest {
         // given
         Long accountFromId = accountService.createAccount("accountFrom");
         Long accountToId = accountService.createAccount("accountTo");
+        long transferCountBefore = transferRepository.count();
 
         Account accountFrom = accountRepository.findById(accountFromId).orElseThrow();
         Account accountTo = accountRepository.findById(accountToId).orElseThrow();
@@ -67,7 +68,7 @@ class TransferServiceIntegrationTest {
         assertThat(accountFrom.getBalance()).isEqualByComparingTo("7000.00");
         assertThat(accountTo.getBalance()).isEqualByComparingTo("3000.00");
 
-        assertThat(transferRepository.count()).isEqualTo(1);
+        assertThat(transferRepository.count()).isEqualTo(transferCountBefore + 1);
 
     }
 }

@@ -30,6 +30,7 @@ public class AccountServiceTest {
     void createAccount_withValidUsername_createsAccountWithZeroBalance() {
         // given
         String username = "testname";
+        long userCountBefore = userRepository.count();
 
         // when
         Long accountId = accountService.createAccount(username);
@@ -40,7 +41,7 @@ public class AccountServiceTest {
         Account account = accountRepository.findById(accountId).orElseThrow();
         assertThat(account.getBalance()).isEqualByComparingTo("0.00");
 
-        assertThat(userRepository.count()).isEqualTo(1);
+        assertThat(userRepository.count()).isEqualTo(userCountBefore + 1);
     }
 
     @Test
