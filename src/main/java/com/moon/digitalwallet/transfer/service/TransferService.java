@@ -9,6 +9,7 @@ import com.moon.digitalwallet.transfer.repository.TransferRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -22,22 +23,27 @@ public class TransferService {
 
     @Transactional
     public void transfer(Long accountFromId, Long accountToId, BigDecimal amount) {
-        Account accountFrom = accountRepository.findById(accountFromId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
-        Account accountTo = accountRepository.findById(accountToId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
 
-        if (accountFromId.equals(accountToId)) {
-            throw new BusinessException(ErrorCode.SAME_ACCOUNT_TRANSFER_NOT_ALLOWED);
+            Account accountFrom = accountRepository.findById(accountFromId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+            Account accountTo = accountRepository.findById(accountToId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+            if (accountFromId.equals(accountToId)) {
+                throw new BusinessException(ErrorCode.SAME_ACCOUNT_TRANSFER_NOT_ALLOWED);
+            }
+
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException(ErrorCode.INVALID_TRANSFER_AMOUNT);
+            }
+
+            accountFrom.withdraw(amount);
+            accountTo.deposit(amount);
+
+        try {
+            transferRepository.saveAndFlush(new Transfer(accountFromId,accountToId, amount));
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(ErrorCode.CONCURRENT_MODIFICATION);
         }
-
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(ErrorCode.INVALID_TRANSFER_AMOUNT);
-        }
-
-        accountFrom.withdraw(amount);
-        accountTo.deposit(amount);
-
-        transferRepository.save(new Transfer(accountFromId,accountToId, amount));
     }
 }
