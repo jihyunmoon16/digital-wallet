@@ -9,7 +9,7 @@ import com.moon.digitalwallet.transfer.repository.TransferRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,7 +27,7 @@ public class TransferService {
             try {
                 transferTransactionService.transferinternal(accountFromId, accountToId, amount);
                 return; // 성공하면 종료
-            } catch (ObjectOptimisticLockingFailureException e) {
+            } catch (OptimisticLockingFailureException e) {
                 if (attempt == MAX_RETRIES) {
                     throw new BusinessException(ErrorCode.CONCURRENT_MODIFICATION);
                 }
