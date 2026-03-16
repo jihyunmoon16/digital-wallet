@@ -75,3 +75,31 @@
 - Rule of thumb:
   - store timestamps with offset (`OffsetDateTime`)
   - convert to local display time only at the API client/UI layer
+
+### 10) Concurrency Control Principles for Transfer
+- Domain risk:
+  - Transfer is a read-modify-write operation on shared account state.
+  - Concurrent requests can pass validation on stale balance and break data integrity.
+
+- Consistency strategy:
+  - Use optimistic locking (`@Version`) on `Account` to detect write conflicts.
+  - Keep transactional balance updates in `TransferTransactionService`.
+  - Keep retry orchestration in `TransferService` (separation of transaction and retry policy).
+
+- Retry and error policy:
+  - Retry only optimistic lock conflicts with bounded attempts.
+  - Do not retry business rule failures (for example `INSUFFICIENT_BALANCE`).
+  - Map unresolved lock conflicts to `CONCURRENT_MODIFICATION` (`409 Conflict`).
+
+- Observable API behavior:
+  - Return explicit error code and HTTP status for conflict cases.
+  - Include `requestId` in error responses for production traceability.
+
+- Test guarantees:
+  - Concurrency integration tests verify invariants:
+    - only one transfer succeeds in the competing scenario,
+    - final balance remains valid,
+    - transfer history increments consistently.
+  - Controller tests verify API contracts:
+    - error code/status mapping,
+    - request id propagation.
