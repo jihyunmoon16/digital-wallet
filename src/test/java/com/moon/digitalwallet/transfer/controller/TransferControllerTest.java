@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.moon.digitalwallet.common.error.BusinessException;
 import com.moon.digitalwallet.common.error.ErrorCode;
-import com.moon.digitalwallet.transfer.service.TransferService;
+import com.moon.digitalwallet.idempotency.service.IdempotentTransferService;
 
 @WebMvcTest(TransferController.class)
 public class TransferControllerTest {
@@ -25,13 +25,15 @@ public class TransferControllerTest {
 	private MockMvc mockMvc;
 
 	@MockitoBean
-	private TransferService transferService;
+	private IdempotentTransferService idempotentTransferService;
 
 	@Test
 	void transfer_success() throws Exception {
+		when(idempotentTransferService.transfer(anyString(), anyLong(), anyLong(), any(BigDecimal.class)))
+			.thenReturn(1001L);
 
 		String request = """
-        {
+	        {
           "fromAccountId": 1,
           "toAccountId": 2,
           "amount": 3000
@@ -39,16 +41,18 @@ public class TransferControllerTest {
         """;
 
 		mockMvc.perform(post("/transfers")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(request))
-			.andExpect(status().isOk());
+					.header("Idempotency-Key", "idem-key-1")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(request))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.transferId").value(1001L));
 	}
 
 	@Test
 	void transfer_insufficientBalance_returns422() throws Exception {
 
-		doThrow(new BusinessException(ErrorCode.INSUFFICIENT_BALANCE)).when(transferService)
-			.transfer(anyLong(), anyLong(), any(BigDecimal.class));
+		when(idempotentTransferService.transfer(anyString(), anyLong(), anyLong(), any(BigDecimal.class)))
+			.thenThrow(new BusinessException(ErrorCode.INSUFFICIENT_BALANCE));
 
 		String request = """
 		{
@@ -59,10 +63,11 @@ public class TransferControllerTest {
 		""";
 
 		mockMvc.perform(post("/transfers")
-				.header("X-Request-Id", "req-422")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(request))
-			.andExpect(status().isUnprocessableContent())
+					.header("X-Request-Id", "req-422")
+					.header("Idempotency-Key", "idem-key-422")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(request))
+				.andExpect(status().isUnprocessableContent())
 			.andExpect(jsonPath("$.code").value("INSUFFICIENT_BALANCE"))
 			.andExpect(jsonPath("$.message").value("insufficient balance"))
 			.andExpect(jsonPath("$.requestId").value("req-422"));
@@ -71,8 +76,8 @@ public class TransferControllerTest {
 	@Test
 	void transfer_concurrentModification_returns409WithErrorCode() throws Exception {
 
-		doThrow(new BusinessException(ErrorCode.CONCURRENT_MODIFICATION)).when(transferService)
-			.transfer(anyLong(), anyLong(), any(BigDecimal.class));
+		when(idempotentTransferService.transfer(anyString(), anyLong(), anyLong(), any(BigDecimal.class)))
+			.thenThrow(new BusinessException(ErrorCode.CONCURRENT_MODIFICATION));
 
 		String request = """
 		{
@@ -83,13 +88,32 @@ public class TransferControllerTest {
 		""";
 
 		mockMvc.perform(post("/transfers")
-				.header("X-Request-Id", "req-123")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(request))
-			.andExpect(status().isConflict())
+					.header("X-Request-Id", "req-123")
+					.header("Idempotency-Key", "idem-key-123")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(request))
+				.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("CONCURRENT_MODIFICATION"))
 			.andExpect(jsonPath("$.message").value("concurrent modification"))
-			.andExpect(jsonPath("$.requestId").value("req-123"));
+				.andExpect(jsonPath("$.requestId").value("req-123"));
+	}
+
+	@Test
+	void transfer_withoutIdempotencyKey_returns400() throws Exception {
+		String request = """
+		{
+		  "fromAccountId": 1,
+		  "toAccountId": 2,
+		  "amount": 3000
+		}
+		""";
+
+		mockMvc.perform(post("/transfers")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request))
+			.andExpect(status().isBadRequest());
+
+		verify(idempotentTransferService, never()).transfer(anyString(), anyLong(), anyLong(), any(BigDecimal.class));
 	}
 
 }

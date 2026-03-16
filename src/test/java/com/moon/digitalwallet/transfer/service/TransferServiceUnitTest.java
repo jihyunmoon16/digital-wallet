@@ -3,10 +3,10 @@ package com.moon.digitalwallet.transfer.service;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 
@@ -55,7 +55,7 @@ class TransferServiceUnitTest {
 		Long toId = 2L;
 		BigDecimal amount = new BigDecimal("3000.00");
 
-		doNothing().when(transferTransactionService).transferinternal(fromId, toId, amount);
+		when(transferTransactionService.transferinternal(fromId, toId, amount)).thenReturn(1L);
 
 		// when & then
 		assertThatCode(() -> transferService.transfer(fromId, toId, amount))

@@ -22,7 +22,7 @@ public class TransferTransactionService {
 	private final TransferRepository transferRepository;
 
 	@Transactional
-	public void transferinternal(Long accountFromId, Long accountToId, BigDecimal amount) {
+	public Long transferinternal(Long accountFromId, Long accountToId, BigDecimal amount) {
 		Account accountFrom = accountRepository.findById(accountFromId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
 
@@ -41,6 +41,7 @@ public class TransferTransactionService {
 		accountTo.deposit(amount);
 
 		// 여기서는 optimistic lock 예외를 잡지 말고 그대로 둔다
-		transferRepository.saveAndFlush(new Transfer(accountFromId, accountToId, amount));
+		Transfer transfer = transferRepository.saveAndFlush(new Transfer(accountFromId, accountToId, amount));
+		return transfer.getId();
 	}
 }
