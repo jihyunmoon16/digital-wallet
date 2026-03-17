@@ -103,3 +103,56 @@
   - Controller tests verify API contracts:
     - error code/status mapping,
     - request id propagation.
+
+### 11) Idempotency Design for Transfer
+- Domain risk:
+  - Network failures or client timeouts can cause the same transfer request to be sent more than once.
+  - Without idempotency, each retry executes a new transfer, resulting in duplicate charges.
+
+- API contract:
+  - Every `POST /transfers` request must include an `Idempotency-Key` header with a client-generated UUID.
+  - Requests without the header are rejected with `400 Bad Request`.
+  - The same key may be safely retried — only the first successful execution takes effect.
+
+- Consistency strategy:
+  - Use Redis `SET NX` (`setIfAbsent`) to atomically claim an idempotency key before executing the transfer.
+  - Atomicity prevents two concurrent requests with the same key from both proceeding.
+  - Store a `requestHash` (`fromAccountId:toAccountId:amount`) alongside the status so key reuse with different parameters is detected and rejected.
+
+- State model:
+  - `IN_PROGRESS` — transfer is currently executing. TTL: 30 seconds.
+  - `SUCCESS` — transfer completed. Cached `transferId` is returned on retry. TTL: 24 hours.
+  - `FAILED` — transfer failed. Key is preserved so the client receives a clear error instead of re-executing a known-bad request. TTL: 5 minutes.
+
+- Redis value format:
+  - `IN_PROGRESS|{requestHash}`
+  - `SUCCESS|{requestHash}|{transferId}`
+  - `FAILED|{requestHash}`
+
+- TTL rationale:
+  - `IN_PROGRESS` (30 seconds): covers the maximum expected transfer processing time. Expired keys are automatically released so the client can retry after a timeout.
+  - `SUCCESS` (24 hours): covers all realistic retry windows while preventing unbounded memory growth in Redis.
+  - `FAILED` (5 minutes): preserves the failure record long enough for the client to detect it, without holding memory indefinitely.
+
+- Error codes:
+  - `IDEMPOTENCY_REQUEST_IN_PROGRESS` (`409`) — a request with this key is already being processed.
+  - `IDEMPOTENCY_KEY_CONFLICT` (`409`) — the key was previously used with different request parameters.
+  - `IDEMPOTENCY_REQUEST_FAILED` (`409`) — the previous request with this key failed; the client must use a new key to retry.
+
+- Why FAILED state instead of deleting the key:
+  - Deleting the key on failure allows the same key to be reused immediately, which risks re-executing a request whose failure cause has not been resolved.
+  - Storing `FAILED` gives the client a clear signal: this specific request failed, generate a new key for the next attempt.
+
+- Design decisions:
+  - Why Redis over a DB-based approach: `setIfAbsent` maps directly to Redis `SET NX`, which is atomic. This prevents race conditions when two identical requests arrive simultaneously — only one acquires the key and proceeds.
+  - Why FAILED state instead of deleting the key: storing `FAILED` preserves the failure record for 5 minutes, allowing the client to distinguish between a request that failed and one that was never received. The client is expected to generate a new key and retry rather than reusing a failed key.
+  - Why TTL on SUCCESS: Redis is an in-memory store. Without TTL, completed transfer records would accumulate indefinitely. A 24-hour window covers all realistic retry scenarios while keeping memory usage bounded.
+
+- Test guarantees:
+  - Idempotency integration tests verify invariants:
+    - the same key with the same request executes only once and returns the same `transferId`,
+    - the same key with different parameters returns `IDEMPOTENCY_KEY_CONFLICT`,
+    - a failed request followed by a retry with the same key returns `IDEMPOTENCY_REQUEST_FAILED`.
+  - Controller tests verify API contracts:
+    - missing `Idempotency-Key` header returns `400 Bad Request`,
+    - successful response includes `transferId` in the response body.

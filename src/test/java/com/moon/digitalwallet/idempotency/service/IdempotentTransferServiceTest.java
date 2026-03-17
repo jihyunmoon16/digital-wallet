@@ -96,4 +96,33 @@ class IdempotentTransferServiceTest {
 		assertThat(reloadedTo.getBalance()).isEqualByComparingTo("3000.00");
 		assertThat(transferRepository.count()).isEqualTo(transferCountBefore + 1);
 	}
+
+	@Test
+	void transfer_withFailedKey_returnIdempotencyRequestFailedErrorCode() {
+		// given
+		long transferCountBefore = transferRepository.count();
+		Long fromId = accountService.createAccount("from");
+		Long toId = accountService.createAccount("to");
+
+		String key = "idem-" + UUID.randomUUID();
+
+		// when
+		assertThatThrownBy(() -> idempotentTransferService.transfer(key, fromId, toId, new BigDecimal("3000.00")))
+			.isInstanceOf(BusinessException.class);
+
+		// when
+		assertThatThrownBy(() -> idempotentTransferService.transfer(key, fromId, toId, new BigDecimal("3000.00")))
+			.isInstanceOf(BusinessException.class)
+			.satisfies(ex ->
+				assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.IDEMPOTENCY_REQUEST_FAILED)
+			);
+
+		// then
+		Account reloadedFrom = accountRepository.findById(fromId).orElseThrow();
+		Account reloadedTo = accountRepository.findById(toId).orElseThrow();
+		assertThat(reloadedFrom.getBalance()).isEqualByComparingTo("0.00");
+		assertThat(reloadedTo.getBalance()).isEqualByComparingTo("0.00");
+		assertThat(transferRepository.count()).isEqualTo(transferCountBefore);
+	}
+
 }

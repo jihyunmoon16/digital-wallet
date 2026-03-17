@@ -19,8 +19,10 @@ public class IdempotentTransferService {
 	private static final String KEY_PREFIX = "idem:transfer:";
 	private static final Duration IN_PROGRESS_TTL = Duration.ofSeconds(30);
 	private static final Duration SUCCESS_TTL = Duration.ofHours(24);
+	private static final Duration FAILED_TTL = Duration.ofMinutes(5);
 	private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
 	private static final String STATUS_SUCCESS = "SUCCESS";
+	private static final String STATUS_FAILED = "FAILED";
 
 	private final StringRedisTemplate redisTemplate;
 	private final TransferService transferService;
@@ -38,7 +40,7 @@ public class IdempotentTransferService {
 				redisTemplate.opsForValue().set(key, encodeSuccess(requestHash, transferId), SUCCESS_TTL);
 				return transferId;
 			} catch (RuntimeException e) {
-				redisTemplate.delete(key);
+				redisTemplate.opsForValue().set(key, encodeFailure(requestHash), FAILED_TTL);
 				throw e;
 			}
 		}
@@ -57,6 +59,10 @@ public class IdempotentTransferService {
 			return cachedTransfer.transferId();
 		}
 
+		if (STATUS_FAILED.equals(cachedTransfer.status())) {
+			throw new BusinessException(ErrorCode.IDEMPOTENCY_REQUEST_FAILED);
+		}
+
 		throw new BusinessException(ErrorCode.IDEMPOTENCY_REQUEST_IN_PROGRESS);
 	}
 
@@ -71,6 +77,11 @@ public class IdempotentTransferService {
 	private String encodeSuccess(String requestHash, Long transferId) {
 		return STATUS_SUCCESS + "|" + requestHash + "|" + transferId;
 	}
+
+	private String encodeFailure(String requestHash) {
+		return STATUS_FAILED + "|" + requestHash;
+	}
+
 
 	private record CachedTransfer(String status, String requestHash, Long transferId) {
 		private static CachedTransfer parse(String value) {

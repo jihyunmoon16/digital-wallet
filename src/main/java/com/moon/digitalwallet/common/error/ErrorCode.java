@@ -11,7 +11,8 @@ public enum ErrorCode {
     IDEMPOTENCY_KEY_CONFLICT(HttpStatus.CONFLICT, "idempotency key reused with different request"),
     IDEMPOTENCY_REQUEST_IN_PROGRESS(HttpStatus.CONFLICT, "request already in progress"),
     CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "concurrent modification"),
-	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal server error");
+	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal server error"),
+    IDEMPOTENCY_REQUEST_FAILED(HttpStatus.CONFLICT, "previous request with this key has failed, use a new key"),;
 
     private final HttpStatus httpStatus;
     private final String message;
