@@ -156,3 +156,7 @@
   - Controller tests verify API contracts:
     - missing `Idempotency-Key` header returns `400 Bad Request`,
     - successful response includes `transferId` in the response body.
+
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for infrastructure setup and deployment instructions.
