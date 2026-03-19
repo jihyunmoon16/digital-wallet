@@ -160,3 +160,28 @@
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for infrastructure setup and deployment instructions.
+
+## Load Test
+
+Performed with [k6](https://k6.io/) against the production environment (EC2 + RDS).
+
+### Scenario
+
+- 200 concurrent virtual users
+- 30 seconds duration
+- Each user transfers to a unique account pair (no lock contention)
+
+### Results
+
+| Metric | Value |
+|--------|-------|
+| Total requests | 27,809 |
+| Success rate | 100% |
+| Throughput | 922 req/s |
+| p90 | 252ms |
+| p95 | 271ms |
+| avg | 214ms |
+
+### Concurrency test
+
+When 200 users target the same account simultaneously, optimistic locking detects conflicts and returns `409 CONCURRENT_MODIFICATION` after 3 retries. This confirms data integrity is maintained under contention.
