@@ -1,5 +1,30 @@
 # Digital Wallet
 
+A backend API simulating a digital wallet system, built with Spring Boot.  
+Designed to demonstrate production-level patterns including concurrency control,  
+idempotency, structured logging, and cloud deployment.
+
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| Language | Java 21 |
+| Framework | Spring Boot 3 |
+| Database | PostgreSQL 17 (AWS RDS) |
+| Cache | Redis 7 (Docker) |
+| ORM | JPA / Hibernate |
+| Migration | Flyway |
+| Testing | JUnit 5, AssertJ |
+| Load Test | k6 |
+| Infra | AWS EC2 |
+
+## API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/transfers` | Transfer between accounts |
+| GET | `/actuator/health` | Health check |
+
 ## Test Code Conventions
 
 ### 1) TDD workflow
@@ -185,3 +210,30 @@ Performed with [k6](https://k6.io/) against the production environment (EC2 + RD
 ### Concurrency test
 
 When 200 users target the same account simultaneously, optimistic locking detects conflicts and returns `409 CONCURRENT_MODIFICATION` after 3 retries. This confirms data integrity is maintained under contention.
+
+## Failure Scenarios
+
+### 1. Redis unavailable
+- **Symptom**: All transfer requests fail with 500
+- **Cause**: `setIfAbsent()` throws `RedisConnectionException`
+- **Behavior**: Fail-closed — transfers are rejected until Redis recovers
+- **Rationale**: Duplicate transfers are more dangerous than temporary downtime in a financial system
+- **Recovery**: Restart Redis, retry failed requests with the same `Idempotency-Key`
+
+### 2. RDS unavailable
+- **Symptom**: All transfer requests fail with 500
+- **Cause**: HikariCP connection pool exhausted or DB unreachable
+- **Behavior**: Spring Boot health check returns `DOWN`
+- **Recovery**: RDS automatic failover (if Multi-AZ enabled), or manual restart
+
+### 3. Duplicate transfer request
+- **Symptom**: Client retries after network timeout
+- **Cause**: Response lost in transit — server processed but client didn't receive
+- **Behavior**: Second request hits Redis, finds `SUCCESS` state, returns cached `transferId`
+- **Result**: Transfer executes exactly once
+
+### 4. Concurrent transfer conflict
+- **Symptom**: `409 CONCURRENT_MODIFICATION`
+- **Cause**: Multiple requests modify the same account simultaneously
+- **Behavior**: Optimistic lock detects version conflict, retries up to 3 times
+- **Result**: One request succeeds, others fail with explicit error code
