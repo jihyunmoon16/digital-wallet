@@ -24,6 +24,8 @@ idempotency, structured logging, and cloud deployment.
 |--------|----------|-------------|
 | POST | `/transfers` | Transfer between accounts |
 | GET | `/actuator/health` | Health check |
+| GET | `/actuator/health/liveness` | Process liveness probe |
+| GET | `/actuator/health/readiness` | Traffic readiness probe |
 
 ## Test Code Conventions
 
@@ -181,6 +183,29 @@ idempotency, structured logging, and cloud deployment.
   - Controller tests verify API contracts:
     - missing `Idempotency-Key` header returns `400 Bad Request`,
     - successful response includes `transferId` in the response body.
+
+### 12) Health Probe Policy
+- Why it matters:
+  - A process can be alive while still being unable to serve transfer traffic.
+  - This project depends on both PostgreSQL and Redis for correct transfer handling.
+
+- Probe split:
+  - `liveness` checks only `ping`.
+  - `readiness` checks `db`, `redis`, and `ping`.
+
+- Reason for including Redis in readiness:
+  - Transfer requests use Redis-backed idempotency keys.
+  - If Redis is unavailable, the system fails closed to avoid duplicate transfers.
+  - In that state, the process is alive but should not receive new traffic.
+
+- Operational behavior:
+  - `/actuator/health/liveness` answers whether the app process itself is still healthy.
+  - `/actuator/health/readiness` answers whether the app can safely accept requests.
+  - Production hides component details, while the test profile exposes them so the probe contract can be verified.
+
+- Deployment implication:
+  - A load balancer or container platform should use `/actuator/health/readiness` for traffic routing decisions.
+  - `liveness` should remain simple so temporary dependency issues do not trigger unnecessary restarts.
 
 ## Deployment
 

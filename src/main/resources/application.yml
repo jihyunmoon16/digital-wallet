@@ -16,11 +16,19 @@ spring:
       host: localhost
       port: 6379
 
-  management:
-    endpoints:
-      web:
-        exposure:
-          include: health,info,metrics
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db,redis,ping
 
 
