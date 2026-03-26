@@ -33,7 +33,7 @@ public class TransferControllerTest {
 			.thenReturn(1001L);
 
 		String request = """
-	        {
+	    {
           "fromAccountId": 1,
           "toAccountId": 2,
           "amount": 3000
@@ -45,6 +45,7 @@ public class TransferControllerTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content(request))
 				.andExpect(status().isOk())
+				.andExpect(header().exists("X-Request-Id"))
 				.andExpect(jsonPath("$.transferId").value(1001L));
 	}
 
@@ -68,9 +69,10 @@ public class TransferControllerTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content(request))
 				.andExpect(status().isUnprocessableContent())
-			.andExpect(jsonPath("$.code").value("INSUFFICIENT_BALANCE"))
-			.andExpect(jsonPath("$.message").value("insufficient balance"))
-			.andExpect(jsonPath("$.requestId").value("req-422"));
+				.andExpect(header().string("X-Request-Id", "req-422"))
+				.andExpect(jsonPath("$.code").value("INSUFFICIENT_BALANCE"))
+				.andExpect(jsonPath("$.message").value("insufficient balance"))
+				.andExpect(jsonPath("$.requestId").value("req-422"));
 	}
 
 	@Test
@@ -93,8 +95,9 @@ public class TransferControllerTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content(request))
 				.andExpect(status().isConflict())
-			.andExpect(jsonPath("$.code").value("CONCURRENT_MODIFICATION"))
-			.andExpect(jsonPath("$.message").value("concurrent modification"))
+				.andExpect(header().string("X-Request-Id", "req-123"))
+				.andExpect(jsonPath("$.code").value("CONCURRENT_MODIFICATION"))
+				.andExpect(jsonPath("$.message").value("concurrent modification"))
 				.andExpect(jsonPath("$.requestId").value("req-123"));
 	}
 
@@ -114,6 +117,28 @@ public class TransferControllerTest {
 			.andExpect(status().isBadRequest());
 
 		verify(idempotentTransferService, never()).transfer(anyString(), anyLong(), anyLong(), any(BigDecimal.class));
+	}
+
+	@Test
+	void transfer_withoutRequestId_generatesRequestIdHeader() throws Exception {
+		when(idempotentTransferService.transfer(anyString(), anyLong(), anyLong(), any(BigDecimal.class)))
+			.thenReturn(1002L);
+
+		String request = """
+		{
+		  "fromAccountId": 1,
+		  "toAccountId": 2,
+		  "amount": 3000
+		}
+		""";
+
+		mockMvc.perform(post("/transfers")
+				.header("Idempotency-Key", "idem-key-generated-request-id")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request))
+			.andExpect(status().isOk())
+			.andExpect(header().exists("X-Request-Id"))
+			.andExpect(header().string("X-Request-Id", org.hamcrest.Matchers.not(org.hamcrest.Matchers.blankOrNullString())));
 	}
 
 }
