@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 public class TransferService {
 
     private static final int MAX_RETRIES = 3;
+    private static final long BASE_BACKOFF_MILLIS = 50L;
 
     private final TransferTransactionService transferTransactionService;
 
@@ -24,8 +25,18 @@ public class TransferService {
                 if (attempt == MAX_RETRIES) {
                     throw new BusinessException(ErrorCode.CONCURRENT_MODIFICATION);
                 }
+                backoff(attempt);
             }
         }
         throw new IllegalStateException("retry loop exited unexpectedly");
+    }
+
+    private void backoff(int attempt) {
+        try {
+            Thread.sleep(BASE_BACKOFF_MILLIS * attempt);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("retry backoff interrupted", e);
+        }
     }
 }
