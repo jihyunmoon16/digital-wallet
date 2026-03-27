@@ -15,14 +15,30 @@
 
     <!-- prod env -->
     <springProfile name="prod">
+        <property name="LOG_DIR" value="${LOG_DIR:-/home/ec2-user/logs}"/>
+
         <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
                 <includeMdc>true</includeMdc>
                 <customFields>{"service":"digital-wallet"}</customFields>
             </encoder>
         </appender>
+
+        <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_DIR}/digital-wallet.json.log</file>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdc>true</includeMdc>
+                <customFields>{"service":"digital-wallet"}</customFields>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_DIR}/archive/digital-wallet.%d{yyyy-MM-dd}.json.log</fileNamePattern>
+                <maxHistory>14</maxHistory>
+            </rollingPolicy>
+        </appender>
+
         <root level="INFO">
             <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="JSON_FILE"/>
         </root>
     </springProfile>
 

@@ -80,7 +80,8 @@ curl http://<ec2-ip>:8080/actuator/health
 ## Logging
 
 - Local: plain text with `requestId` pattern
-- Production: JSON format (LogstashEncoder) for CloudWatch compatibility
+- Production: JSON format (LogstashEncoder) to both console and file for CloudWatch ingestion
+- Production log file path: `/home/ec2-user/logs/digital-wallet.json.log`
 
 ```json
 {
@@ -91,6 +92,62 @@ curl http://<ec2-ip>:8080/actuator/health
   "requestId": "req-test-123"
 }
 ```
+
+## CloudWatch Monitoring
+
+### 1. IAM role
+
+- Attach `CloudWatchAgentServerPolicy` to the EC2 instance role.
+
+### 2. Install CloudWatch Agent
+
+```bash
+sudo yum install amazon-cloudwatch-agent -y
+sudo mkdir -p /home/ec2-user/logs
+```
+
+### 3. Copy agent config
+
+- Repository file: `ops/cloudwatch/amazon-cloudwatch-agent.json`
+
+```bash
+sudo mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+sudo cp ops/cloudwatch/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+```
+
+### 4. Start agent
+
+```bash
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config \
+  -m ec2 \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+  -s
+```
+
+### 5. Minimal alarms
+
+- Application log metric filter:
+  - log group: `/digital-wallet/application`
+  - filter pattern example: `"level":"ERROR"`
+  - metric name: `ApplicationErrorCount`
+  - namespace: `DigitalWallet`
+
+- Health/readiness alarm:
+  - metric source: log metric filter or synthetic health check
+  - alarm when consecutive failures are detected
+
+- Instance health alarms:
+  - `mem_used_percent`
+  - `disk_used_percent`
+
+### 6. Recommended dashboard widgets
+
+- EC2 CPU utilization
+- Memory used percent
+- Disk used percent
+- Application error count
+- `/actuator/health/readiness` status check result
 
 ## Security groups
 
