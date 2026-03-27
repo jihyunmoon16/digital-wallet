@@ -21,7 +21,7 @@ public class TransferTransactionService {
 	private final AccountRepository accountRepository;
 	private final TransferRepository transferRepository;
 
-	@Transactional
+	@Transactional(timeout = 3)
 	public Long transferinternal(Long accountFromId, Long accountToId, BigDecimal amount) {
 		Account accountFrom = accountRepository.findById(accountFromId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
