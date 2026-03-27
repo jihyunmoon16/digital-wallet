@@ -207,6 +207,37 @@ idempotency, structured logging, and cloud deployment.
   - A load balancer or container platform should use `/actuator/health/readiness` for traffic routing decisions.
   - `liveness` should remain simple so temporary dependency issues do not trigger unnecessary restarts.
 
+### 13) Retry and Timeout Policy
+- Why it matters:
+  - Retry without timeout can multiply slow failures.
+  - Timeout without selective retry can fail too aggressively on short-lived write conflicts.
+
+- Retry policy:
+  - Retry only `OptimisticLockingFailureException` in `TransferService`.
+  - Maximum attempts: `3`
+  - Backoff:
+    - after first conflict: `50ms`
+    - after second conflict: `100ms`
+  - If all attempts fail, return `CONCURRENT_MODIFICATION` (`409 Conflict`).
+  - Do not retry business rule failures such as `INSUFFICIENT_BALANCE`.
+
+- Timeout policy:
+  - Hikari connection timeout: `3000ms`
+  - Hikari validation timeout: `1000ms`
+  - Redis command timeout: `1500ms`
+  - Transfer transaction timeout: `3s`
+
+- Design rationale:
+  - Database and Redis are required dependencies for safe transfer execution.
+  - Short infrastructure timeouts prevent threads from being blocked too long during dependency failures.
+  - Transfer writes are expected to complete quickly; a transaction that exceeds `3s` is treated as abnormal.
+  - Backoff reduces repeated collisions immediately after an optimistic lock conflict.
+
+- Operational rule:
+  - Retry only transient technical conflicts.
+  - Fail fast on infrastructure slowdown.
+  - Return explicit business or conflict errors rather than retrying indiscriminately.
+
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for infrastructure setup and deployment instructions.
