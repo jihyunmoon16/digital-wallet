@@ -45,37 +45,103 @@ sudo usermod -aG docker ec2-user
 ### 2. Redis
 
 ```bash
-docker run -d --name redis -p 6379:6379 redis:7
+docker run -d --name redis -p 6379:6379 --restart unless-stopped redis:7
 ```
 
-### 3. Environment variables
+### 3. Application log directory
 
 ```bash
-export DB_PASSWORD=<rds-master-password>
+sudo mkdir -p /home/ec2-user/logs/archive
+sudo chown -R ec2-user:ec2-user /home/ec2-user/logs
 ```
 
-### 4. Deploy
+### 4. Environment file
+
+```bash
+sudo mkdir -p /etc/digital-wallet
+sudo tee /etc/digital-wallet/digital-wallet.env > /dev/null <<'EOF'
+DB_PASSWORD=<rds-master-password>
+EOF
+sudo chmod 600 /etc/digital-wallet/digital-wallet.env
+```
+
+### 5. systemd service
+
+```bash
+sudo tee /etc/systemd/system/digital-wallet.service > /dev/null <<'EOF'
+[Unit]
+Description=Digital Wallet Spring Boot App
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=ec2-user
+WorkingDirectory=/home/ec2-user
+EnvironmentFile=/etc/digital-wallet/digital-wallet.env
+ExecStart=/usr/bin/java -Dspring.profiles.active=prod -jar /home/ec2-user/digital-wallet-0.0.1-SNAPSHOT.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable digital-wallet
+```
+
+### 6. First deploy
 
 ```bash
 # Build locally
-./gradlew clean build -x test
+./gradlew clean bootJar
 
 # Copy to EC2
 scp -i <key>.pem build/libs/digital-wallet-0.0.1-SNAPSHOT.jar ec2-user@<ec2-ip>:~/
 
-# Run on EC2
-nohup java -jar \
-  -Dspring.profiles.active=prod \
-  ~/digital-wallet-0.0.1-SNAPSHOT.jar \
-  > ~/app.log 2>&1 &
+# Start on EC2
+ssh -i <key>.pem ec2-user@<ec2-ip>
+sudo systemctl start digital-wallet
+sudo systemctl status digital-wallet --no-pager
 ```
 
-### 5. Verify
+### 7. Verify
 
 ```bash
 curl http://<ec2-ip>:8080/actuator/health
-# {"status":"UP"}
+curl http://<ec2-ip>:8080/actuator/health/readiness
 ```
+
+```bash
+ssh -i <key>.pem ec2-user@<ec2-ip>
+sudo systemctl status digital-wallet --no-pager
+sudo journalctl -u digital-wallet -n 100 --no-pager
+```
+
+## Redeploy
+
+```bash
+# 1) Build locally
+./gradlew clean bootJar
+
+# 2) Upload the new jar
+scp -i <key>.pem build/libs/digital-wallet-0.0.1-SNAPSHOT.jar ec2-user@<ec2-ip>:~/
+
+# 3) Restart the service on EC2
+ssh -i <key>.pem ec2-user@<ec2-ip>
+sudo systemctl restart digital-wallet
+
+# 4) Verify rollout
+sudo systemctl status digital-wallet --no-pager
+sudo journalctl -u digital-wallet -n 100 --no-pager
+curl http://localhost:8080/actuator/health/readiness
+```
+
+- Why this flow:
+  - `systemd` keeps the process alive across reboots and restarts on failure.
+  - Secrets stay in `/etc/digital-wallet/digital-wallet.env` instead of shell history.
+  - `journalctl` becomes the primary source of process startup and failure logs.
 
 ## Logging
 
