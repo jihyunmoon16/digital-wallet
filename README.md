@@ -238,6 +238,60 @@ idempotency, structured logging, and cloud deployment.
   - Fail fast on infrastructure slowdown.
   - Return explicit business or conflict errors rather than retrying indiscriminately.
 
+### 14) CloudWatch Monitoring Baseline
+- What is collected now:
+  - Application JSON logs are written to `/home/ec2-user/logs/digital-wallet.json.log`.
+  - CloudWatch Agent ships application logs to log group `/digital-wallet/application`.
+  - CloudWatch Agent publishes infrastructure metrics in namespace `DigitalWallet`.
+  - Current custom/application-facing metric:
+    - `ApplicationErrorCount` from `ERROR` level log events
+  - Current infrastructure metrics:
+    - `mem_used_percent`
+    - `disk_used_percent`
+
+- Why this split matters:
+  - Logs answer why a request failed.
+  - Metrics answer whether failure rate or host pressure is rising.
+  - Health probes answer whether the instance should keep receiving traffic.
+
+- Recommended baseline alarms:
+  - `digital-wallet-application-error`
+    - source: `ApplicationErrorCount`
+    - condition: `>= 1`
+    - period: `5 minutes`
+    - missing data: treat as good
+  - `digital-wallet-ec2-memory-high`
+    - source: `mem_used_percent`
+    - condition: `>= 80`
+    - evaluation: `3 of 3` over `1 minute`
+  - `digital-wallet-ec2-disk-high`
+    - source: `disk_used_percent`
+    - condition: `>= 80`
+    - evaluation: `3 of 3` over `1 minute`
+
+- Dashboard design:
+  - Service Overview:
+    - `ApplicationErrorCount`
+    - readiness check result
+    - EC2 CPU, memory, and disk usage
+    - purpose: quickly answer whether the service is healthy right now
+  - Error Dashboard:
+    - recent `ERROR` logs from `/digital-wallet/application`
+    - error code distribution
+    - requestId-based drill-down
+    - purpose: quickly explain why requests are failing
+  - Infra Health:
+    - EC2 CPU
+    - `mem_used_percent`
+    - `disk_used_percent`
+    - RDS CPU and DB connections
+    - purpose: distinguish application errors from infrastructure saturation
+
+- Current limitation:
+  - The project currently emits infrastructure metrics and `ERROR` log count directly.
+  - Transfer success count, conflict count, and business error breakdown are still log-derived unless extra custom metrics are added.
+  - In other words, the current baseline is enough for minimal production monitoring, but a richer Grafana or CloudWatch dashboard would add transfer-domain metrics next.
+
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for infrastructure setup and deployment instructions.
